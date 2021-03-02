@@ -1,7 +1,21 @@
 let badTabs = new Set();
 let activeTabId;
 let timers = {};
-const INACTIVE_TIME = 10 * 1000;
+var user_preferences = [
+  {
+    url: 'https://www.google.com/search?q=',
+    time: 3,
+  },
+  {
+    url: 'https://www.youtube.com',
+    time: 3,
+  },
+];
+
+chrome.storage.sync.get(['key'], function (result) {
+  let default_user_preferences = user_preferences;
+  user_preferences = result.user_preferences || default_user_preferences;
+});
 
 setInterval(() => {
   chrome.tabs.query({ currentWindow: true, active: true }, (activeTab) => {
@@ -9,9 +23,10 @@ setInterval(() => {
     inactiveTabs.delete(activeTabId);
     chrome.runtime.sendMessage({
       badTabs: [...inactiveTabs],
+      user_preferences,
     });
   });
-}, 500);
+}, 100);
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete') {
@@ -25,6 +40,12 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
   }
 });
+
+function isBadTab(tab) {
+  const urls = user_preferences.map((preference) => preference.url);
+  if (urls.filter((url) => tab.url.indexOf(url) !== -1).length) return 1;
+  else return 0;
+}
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
   if (badTabs.has(activeInfo.tabId) && badTabs.has(activeTabId)) {
@@ -53,12 +74,39 @@ chrome.tabs.onRemoved.addListener((tabId, closed_tab_info) => {
 });
 
 const deleteTab = (tabId) => {
-  timers[activeTabId] = setTimeout(() => {
-    chrome.tabs.remove([tabId], () => console.log(`${tabId} tab is deleted.`));
-  }, INACTIVE_TIME);
+  chrome.tabs.get(tabId, (tab) => {
+    let arr = user_preferences[searchUrlInPreferences(tab.url)];
+
+    timers[tabId] = setTimeout(() => {
+      chrome.tabs.remove([tabId], () => console.log(`${tabId} tab is deleted.`));
+    }, arr.time * 1000);
+  });
 };
 
-const isBadTab = (tab) => {
-  if (tab.url.indexOf('https://www.google.com/search?q=') === 0) return 1;
-  else return 0;
-};
+function searchUrlInPreferences(url) {
+  for (var i = 0; i < user_preferences.length; i++) {
+    if (url.indexOf(user_preferences[i].url) !== -1) return i;
+  }
+}
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.msg === 'SAVE_USER_PREFERENCES') {
+    chrome.storage.sync.set({ user_preferences: request.user_preferences }, function () {});
+  }
+  if (request.msg === 'ADD_NEW_URL') {
+    chrome.storage.sync.set({ user_preferences: [...user_preferences, request.data] }, function () {});
+  }
+  if (request.msg === 'REMOVE_URL') {
+    let index = searchUrlInPreferences(request.data.url);
+    chrome.storage.sync.set({ user_preferences: user_preferences.splice(index, 1) }, function () {});
+  }
+  sendResponse(true);
+});
+
+// Listen to storage changes
+chrome.storage.onChanged.addListener(function (changes, namespace) {
+  for (var key in changes) {
+    var storageChange = changes[key];
+    user_preferences = storageChange.newValue;
+  }
+});

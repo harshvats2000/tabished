@@ -6,10 +6,6 @@ var user_preferences = [
     url: 'https://www.google.com/search?q=',
     time: 3,
   },
-  {
-    url: 'https://www.youtube.com',
-    time: 3,
-  },
 ];
 
 chrome.storage.sync.get(['key'], function (result) {
@@ -29,7 +25,7 @@ setInterval(() => {
 }, 100);
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete') {
+  if (tab.url) {
     if (isBadTab(tab)) {
       console.log('added to bad tab.');
       badTabs.add(tabId);

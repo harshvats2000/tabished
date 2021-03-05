@@ -1,6 +1,6 @@
 {
   "name": "Tabished",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Closes all inactive tabs after some time. User has the flexibility to change websites and inactivity time.",
   "background": {
     "scripts": ["background.js"],

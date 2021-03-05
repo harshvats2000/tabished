@@ -8,23 +8,26 @@ var user_preferences = [
   },
 ];
 
-chrome.storage.sync.get(['key'], function (result) {
-  let default_user_preferences = user_preferences;
-  user_preferences = result.user_preferences || default_user_preferences;
+// Get user_preferences from cloud if stored
+chrome.storage.sync.get(['user_preferences'], function (result) {
+  user_preferences = result.user_preferences || user_preferences;
 });
 
+// Keep sending message to popup at a regular interval
 setInterval(() => {
   chrome.tabs.query({ currentWindow: true, active: true }, (activeTab) => {
+    // All bad tabs are inactive tabs except the one which is active
     let inactiveTabs = new Set(badTabs);
     inactiveTabs.delete(activeTabId);
     chrome.runtime.sendMessage({
-      badTabs: [...inactiveTabs],
+      inactiveTabs: [...inactiveTabs],
       user_preferences,
     });
   });
 }, 100);
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  // Check if url exists before sending it to isBadTab function
   if (tab.url) {
     if (isBadTab(tab)) {
       console.log('added to bad tab.');
@@ -44,17 +47,25 @@ function isBadTab(tab) {
 }
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
-  if (badTabs.has(activeInfo.tabId) && badTabs.has(activeTabId)) {
-    console.log(`bad to other\ntimer starts for ${activeTabId}`);
-    deleteTab(activeTabId);
+  let last_active_tabId = activeTabId;
+  is_bad_tab = badTabs.has(activeInfo.tabId);
+  was_bad_tab = badTabs.has(last_active_tabId);
+
+  bad_to_bad = was_bad_tab && is_bad_tab;
+  other_to_bad = !was_bad_tab && is_bad_tab;
+  bad_to_other = was_bad_tab && !is_bad_tab;
+
+  if (bad_to_bad) {
+    console.log(`bad to bad\ntimer starts for ${last_active_tabId}`);
+    startTimer(last_active_tabId);
     console.log(`timer removed for ${activeInfo.tabId}`);
     clearTimeout(timers[activeInfo.tabId]);
-  } else if (badTabs.has(activeInfo.tabId) && !badTabs.has(activeTabId)) {
+  } else if (other_to_bad) {
     console.log(`other to bad.\ntimer removed for ${activeInfo.tabId}`);
     clearTimeout(timers[activeInfo.tabId]);
-  } else if (!badTabs.has(activeInfo.tabId) && badTabs.has(activeTabId)) {
-    console.log(`bad to other\ntimer starts for ${activeTabId}`);
-    deleteTab(activeTabId);
+  } else if (bad_to_other) {
+    console.log(`bad to other\ntimer starts for ${last_active_tabId}`);
+    startTimer(last_active_tabId);
   } else console.log('other to other');
   activeTabId = activeInfo.tabId;
   console.log({ activeTabId });
@@ -62,16 +73,14 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
 
 chrome.tabs.onRemoved.addListener((tabId, closed_tab_info) => {
   if (badTabs.has(tabId)) {
-    console.log(`bad to other\ntimer removed for ${tabId}`);
-    clearTimeout(timers[tabId]);
-
+    console.log(`bad tab ${tabId} closed.`);
     badTabs.delete(tabId);
   } else console.log('other tab is closed.');
 });
 
-const deleteTab = (tabId) => {
+const startTimer = (tabId) => {
   chrome.tabs.get(tabId, (tab) => {
-    let arr = user_preferences[searchUrlInPreferences(tab.url)];
+    let arr = user_preferences[getIndexFromUrl(tab.url)];
 
     timers[tabId] = setTimeout(() => {
       chrome.tabs.remove([tabId], () => console.log(`${tabId} tab is deleted.`));
@@ -79,23 +88,32 @@ const deleteTab = (tabId) => {
   });
 };
 
-function searchUrlInPreferences(url) {
+function getIndexFromUrl(url) {
   for (var i = 0; i < user_preferences.length; i++) {
     if (url.indexOf(user_preferences[i].url) !== -1) return i;
   }
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.msg === 'SAVE_USER_PREFERENCES') {
-    chrome.storage.sync.set({ user_preferences: request.user_preferences }, function () {});
+  switch (request.msg) {
+    case 'SAVE_USER_PREFERENCES':
+      chrome.storage.sync.set({ user_preferences: request.user_preferences }, function () {
+        console.log('Saved successfully.');
+      });
+      break;
+    case 'ADD_NEW_URL':
+      chrome.storage.sync.set({ user_preferences: [...user_preferences, request.data] }, function () {
+        console.log('Added successfully.');
+      });
+      break;
+    case 'REMOVE_URL':
+      let index = getIndexFromUrl(request.data.url);
+      user_preferences.splice(index, 1);
+      chrome.storage.sync.set({ user_preferences: user_preferences }, function () {
+        console.log('removed successfully.');
+      });
   }
-  if (request.msg === 'ADD_NEW_URL') {
-    chrome.storage.sync.set({ user_preferences: [...user_preferences, request.data] }, function () {});
-  }
-  if (request.msg === 'REMOVE_URL') {
-    let index = searchUrlInPreferences(request.data.url);
-    chrome.storage.sync.set({ user_preferences: user_preferences.splice(index, 1) }, function () {});
-  }
+
   sendResponse(true);
 });
 

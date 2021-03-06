@@ -17,9 +17,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     d.querySelector('#user_pref').innerHTML = '';
 
-    let list_node = d.createElement('li');
-
     for (let i = 0; i < user_preferences.length; i++) {
+      let list_node = d.createElement('li');
+
       // Create para element to show url
       createUrlNode(user_preferences[i].url, list_node);
 
@@ -28,8 +28,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       // Create button element to remove a user preference
       createRemoveBtnNode(user_preferences[i], list_node);
+
+      d.querySelector('#user_pref').appendChild(list_node);
     }
-    d.querySelector('#user_pref').appendChild(list_node);
   }
 
   last_user_preferences = user_preferences;

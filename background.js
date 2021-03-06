@@ -4,7 +4,7 @@ let timers = {};
 var user_preferences = [
   {
     url: 'https://www.google.com/search?q=',
-    time: 3,
+    time: 3, // Time is in minutes
   },
 ];
 
@@ -84,7 +84,7 @@ const startTimer = (tabId) => {
 
     timers[tabId] = setTimeout(() => {
       chrome.tabs.remove([tabId], () => console.log(`${tabId} tab is deleted.`));
-    }, arr.time * 1000);
+    }, arr.time * 60 * 1000);
   });
 };
 
@@ -120,7 +120,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Listen to storage changes
 chrome.storage.onChanged.addListener(function (changes, namespace) {
   for (var key in changes) {
-    var storageChange = changes[key];
-    user_preferences = storageChange.newValue;
+    user_preferences = changes[key].newValue;
   }
 });

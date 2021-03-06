@@ -16,3 +16,8 @@
   border: none;
   margin-left: 15px;
 }
+
+.show_success_msg {
+  background: green;
+  color: white;
+}

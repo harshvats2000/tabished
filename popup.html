@@ -6,17 +6,19 @@
     <link rel="stylesheet" href="popup.css" />
     <title>Tabished</title>
   </head>
-  <body style="background: #020202; color: white; min-width: 500px">
+  <body>
     <h2>
-      Tabished <span style="color: gainsboro">(<span id="inactive_tabs"></span> inactive tabs)</span>
+      Tabished <span style="color: rgb(0, 0, 0, 0.7)">(<span id="inactive_tabs"></span> inactive tabs)</span>
     </h2>
     <hr />
     <ol id="user_pref"></ol>
-    <button id="save" style="font-weight: bold; font-size: 20px; padding: 5px 10px">SAVE</button>
+    <button id="save">SAVE</button>
     <hr />
-    <input id="new_url" type="url" placeholder="https://example.com" />
-    <input id="new_time" type="number" placeholder="Enter minutes like 2" />
-    <button id="add" style="font-weight: bold; font-size: 20px; padding: 5px 10px">ADD WEBSITE</button>
+    <div class="add_website_section">
+      <input id="new_url" type="url" placeholder="https://example.com" />
+      <input id="new_time" type="number" placeholder="Enter minutes like 2" />
+      <button id="add">ADD WEBSITE</button>
+    </div>
 
     <script src="popup.js"></script>
   </body>
